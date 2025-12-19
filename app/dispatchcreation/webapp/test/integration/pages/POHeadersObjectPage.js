@@ -9,8 +9,8 @@ sap.ui.define(['sap/fe/test/ObjectPage'], function(ObjectPage) {
     return new ObjectPage(
         {
             appId: 'dispatchcreation',
-            componentId: 'POHeadersObjectPage',
-            contextPath: '/POHeaders'
+            componentId: 'VIM_PO_HEADERSObjectPage',
+            contextPath: '/VIM_PO_HEADERS'
         },
         CustomPageDefinitions
     );

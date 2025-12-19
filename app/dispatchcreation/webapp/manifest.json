@@ -85,28 +85,28 @@
       "routes": [
         {
           "pattern": ":?query:",
-          "name": "POHeadersList",
-          "target": "POHeadersList"
+          "name": "VIM_PO_HEADERSList",
+          "target": "VIM_PO_HEADERSList"
         },
         {
-          "pattern": "POHeaders({key}):?query:",
-          "name": "POHeadersObjectPage",
-          "target": "POHeadersObjectPage"
+          "pattern": "VIM_PO_HEADERS({key}):?query:",
+          "name": "VIM_PO_HEADERSObjectPage",
+          "target": "VIM_PO_HEADERSObjectPage"
         }
       ],
       "targets": {
-        "POHeadersList": {
+        "VIM_PO_HEADERSList": {
           "type": "Component",
-          "id": "POHeadersList",
+          "id": "VIM_PO_HEADERSList",
           "name": "sap.fe.templates.ListReport",
           "options": {
             "settings": {
-              "contextPath": "/POHeaders",
+              "contextPath": "/VIM_PO_HEADERS",
               "variantManagement": "Page",
               "navigation": {
-                "POHeaders": {
+                "VIM_PO_HEADERS": {
                   "detail": {
-                    "route": "POHeadersObjectPage"
+                    "route": "VIM_PO_HEADERSObjectPage"
                   }
                 }
               },
@@ -120,14 +120,14 @@
             }
           }
         },
-        "POHeadersObjectPage": {
+        "VIM_PO_HEADERSObjectPage": {
           "type": "Component",
-          "id": "POHeadersObjectPage",
+          "id": "VIM_PO_HEADERSObjectPage",
           "name": "sap.fe.templates.ObjectPage",
           "options": {
             "settings": {
               "editableHeaderContent": false,
-              "contextPath": "/POHeaders"
+              "contextPath": "/VIM_PO_HEADERS"
             }
           }
         }

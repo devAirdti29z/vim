@@ -1,5 +1,5 @@
 const cds = require("@sap/cds");
-const { mongoRead, handleCRUD } = require("./helper/helper");
+const { mongoRead, handleCRUD, parentexists, parentDeleted } = require("./helper/helper");
 
 
 //for keys not null validation
@@ -16,17 +16,9 @@ function requireKeys(req, keys, entityName) {
   }
 }
 
-//for not allowing duplicate
-async function ensureNotExists(req, entity, where, entityName) {
-  const exists = await SELECT.one.from(entity).where(where);
-  if (exists) {
-    req.reject(
-      409,
-      `${entityName}: Record already exists for key ${JSON.stringify(where)}`
-    );
-  }
-}
-//children must carry same parent keys as POHeader
+
+
+//children must carry same parent keys as VIM_PO_HEADERS
 function ensureParentKeysMatch(req, parent, children, keyFields) {
   if (!req.data[children]) return;
 
@@ -35,7 +27,7 @@ function ensureParentKeysMatch(req, parent, children, keyFields) {
       if (child[k] !== req.data[k]) {
         req.reject(
           400,
-          `${children}: ${k} must match POHeader ${k}`
+          `${children}: ${k} must match VIM_PO_HEADERS ${k}`
         );
       }
     });
@@ -45,9 +37,9 @@ function ensureParentKeysMatch(req, parent, children, keyFields) {
 function validateDeepInsertKeys(req) {
   const parentKeys = ["PONumber", "PlantCode"];
   const children = [
-    "POItems",
-    "DispatchAddresses",
-    "DispatchItems"
+    "VIM_PO_ITEMS",
+    "VIM_PO_DISPATCH_ADDR",
+    "VIM_PO_DISPATCH_ITEMS"
   ];
 
   children.forEach(childName => {
@@ -56,233 +48,245 @@ function validateDeepInsertKeys(req) {
     arr.forEach((child, idx) => {
       parentKeys.forEach(key => {
         if (!child.hasOwnProperty(key) || child[key] !== req.data[key]) {
-          req.error(400, `${childName}[${idx}]: ${key} must match POHeader ${key}`);
+          req.error(400, `${childName}[${idx}]: ${key} must match VIM_PO_HEADERS ${key}`);
         }
       });
     });
   });
 }
 
+//Cascade delete enforcement at Mongo level
+async function cascadeDelete(parentKeys, childCollections, parentCollection) {
+  for (const col of childCollections) {
+    await db.collection(col).deleteMany(parentKeys);
+  }
+  await db.collection(parentCollection).deleteOne(parentKeys);
+}
 
 
 module.exports = cds.service.impl(async function () {
 
   const {
-    POHeaders,
-    POItems,
-    PODispatchAddresses,
-    PODispatchItems
+    VIM_PO_HEADERS,
+    VIM_PO_ITEMS,
+    VIM_PO_DISPATCH_ADDR,
+    VIM_PO_DISPATCH_ITEMS
   } = this.entities;
 
 
   const COLLECTIONS = {
-    POHeaders: "VIM_PO_HEADERS",
-    POItems: "VIM_PO_ITEMS",
-    PODispatchAddresses: "VIM_PO_DISPATCH_ADDR",
-    PODispatchItems: "VIM_PO_DISPATCH_ITEMS"
+    VIM_PO_HEADERS: "VIM_PO_HEADERS",
+    VIM_PO_ITEMS: "VIM_PO_ITEMS",
+    VIM_PO_DISPATCH_ADDR: "VIM_PO_DISPATCH_ADDR",
+    VIM_PO_DISPATCH_ITEMS: "VIM_PO_DISPATCH_ITEMS"
   };
 
-this.before(["CREATE", "UPDATE"], POHeaders, async(req) => {
-  requireKeys(req, ["PONumber", "PlantCode"], "POHeaders");
+this.before(["CREATE", "UPDATE"], VIM_PO_HEADERS, async(req) => {
+  requireKeys(req, ["PONumber", "PlantCode"], "VIM_PO_HEADERS");
 
-  //prevent duplication
-  await ensureNotExists(
-    req,
-    POHeaders,
-    { PONumber: req.data.PONumber, PlantCode: req.data.PlantCode },
-    "POHeaders"
-  );
 
   validateDeepInsertKeys(req); //not working properly
   //Deep-insert, keys match
   // ensureParentKeysMatch(
   //   req,
-  //   POHeaders,
-  //   "POItems",
+  //   VIM_PO_HEADERS,
+  //   "VIM_PO_ITEMS",
   //   ["PONumber", "PlantCode"]
   // );
 
   
   // ensureParentKeysMatch(
   //   req,
-  //   POHeaders,
-  //   "DispatchAddresses",
+  //   VIM_PO_HEADERS,
+  //   "VIM_PO_DISPATCH_ADDR",
   //   ["PONumber", "PlantCode"]
   // );
 
   
   // ensureParentKeysMatch(
   //   req,
-  //   POHeaders,
-  //   "DispatchItems",
+  //   VIM_PO_HEADERS,
+  //   "VIM_PO_DISPATCH_ITEMS",
   //   ["PONumber", "PlantCode"]
   // );
 });
 
 
-  this.on("READ", POHeaders, req =>
-    mongoRead(COLLECTIONS.POHeaders, req, [
-      { name: "POItems" },
-      { name: "PODispatchAddresses" }
-    ])
+  // this.on("READ", VIM_PO_HEADERS, req =>
+  //   console.log("req is",req),
+  //   mongoRead(COLLECTIONS.VIM_PO_HEADERS, req, [
+  //     { name: "VIM_PO_ITEMS" },
+  //     { name: "VIM_PO_DISPATCH_ADDR" }
+  //   ])
+  // );
+this.on("READ", VIM_PO_HEADERS, async (req) => {
+  console.log("READ POHeaders req:", req);
+
+  // return mongoRead(
+  //   COLLECTIONS.VIM_PO_HEADERS,
+  //   req
+  // );
+
+  // handle $expand option
+        const { expand } = req.query;
+        let expandedData = {};
+        
+        // Handle expand for related entities
+        if (expand && expand.includes('VIM_PO_ITEMS')) {
+            expandedData['VIM_PO_ITEMS'] = await mongoRead("VIM_PO_ITEMS", req.data.PONumber, req.data.PlantCode);
+        }
+        if (expand && expand.includes('VIM_PO_DISPATCH_ADDR')) {
+            expandedData['VIM_PO_DISPATCH_ADDR'] = await mongoRead("VIM_PO_DISPATCH_ADDR", req.data.PONumber, req.data.PlantCode);
+        }
+        if (expand && expand.includes('VIM_PO_DISPATCH_ITEMS')) {
+            expandedData['VIM_PO_DISPATCH_ITEMS'] = await mongoRead("VIM_PO_DISPATCH_ITEMS", req.data.PONumber, req.data.PlantCode);
+        }
+
+        // Combine parent data with expanded data
+        const parentData = await mongoRead("VIM_PO_HEADERS", req.data.PONumber, req.data.PlantCode);
+        return { ...parentData, ...expandedData };
+    });
+});
+
+  this.on("CREATE", VIM_PO_HEADERS, req =>
+    handleCRUD(req, "create", "PONumber", req.data.PONumber, null, COLLECTIONS.VIM_PO_HEADERS)
   );
 
-  this.on("CREATE", POHeaders, req =>
-    handleCRUD(req, "create", "PONumber", req.data.PONumber, null, COLLECTIONS.POHeaders)
+  this.on("UPDATE", VIM_PO_HEADERS, req =>
+    handleCRUD(req, "update", "PONumber", req.data.PONumber, null, COLLECTIONS.VIM_PO_HEADERS)
   );
 
-  this.on("UPDATE", POHeaders, req =>
-    handleCRUD(req, "update", "PONumber", req.data.PONumber, null, COLLECTIONS.POHeaders)
-  );
+  this.on("DELETE", VIM_PO_HEADERS, async(req) =>{
+    await handleCRUD(req, "delete", null, null, null, COLLECTIONS.VIM_PO_HEADERS)
 
-  this.on("DELETE", POHeaders, req =>
-    handleCRUD(req, "delete", null, null, null, COLLECTIONS.POHeaders)
-  );
+    //casdade delete
+    await cascadeDelete(req, "delete", null, null, null, COLLECTIONS.VIM_PO_ITEMS,COLLECTIONS.VIM_PO_DISPATCH_ADDR,COLLECTIONS.VIM_PO_DISPATCH_ITEMS)
 
-this.before(["CREATE", "UPDATE"], POItems, async(req) => {
+
+    return { message: "VIM_PO_HEADERS and all child records deleted successfully" };
+});
+
+this.before(["CREATE", "UPDATE"], VIM_PO_ITEMS, async(req) => {
   requireKeys(
     req,
     ["PONumber", "PlantCode", "ItemNumber"],
-    "POItems"
+    "VIM_PO_ITEMS"
   );
 
-  //prevent duplication
-  await ensureNotExists(
-    req,
-    POItems,
-    {
-      PONumber: req.data.PONumber,
-      PlantCode: req.data.PlantCode,
-      ItemNumber: req.data.ItemNumber
-    },
-    "POItems"
+const header= await parentexists(req, "create", "PONumber", req.data.PONumber, null, COLLECTIONS.VIM_PO_HEADERS)
+console.log("header is",header)
+  if (!header) {
+    req.reject(400, "VIM_PO_ITEMS: Parent VIM_PO_HEADERS does not exist");
+    return;
+  }
+
+});
+
+  this.on("READ", VIM_PO_ITEMS, req =>
+    mongoRead(COLLECTIONS.VIM_PO_ITEMS, req)
   );
 
-  //Parent key must exist
-  const header = await SELECT.one.from(POHeaders).where({
+  this.on("CREATE", VIM_PO_ITEMS, req =>
+    handleCRUD(req, "create", "ItemNumber", req.data.ItemNumber, null, COLLECTIONS.VIM_PO_ITEMS)
+  );
+
+  this.on("UPDATE", VIM_PO_ITEMS, req =>
+    handleCRUD(req, "update", "ItemNumber", req.data.ItemNumber, null, COLLECTIONS.VIM_PO_ITEMS)
+  );
+
+  this.on("DELETE", VIM_PO_ITEMS,async (req) =>{
+    const headerExists = await SELECT.one.from(VIM_PO_HEADERS).where({
     PONumber: req.data.PONumber,
     PlantCode: req.data.PlantCode
   });
 
-  if (!header) {
-    req.reject(400, "POItems: Parent POHeader does not exist");
+  if (!headerExists) {
+    req.reject(400, "VIM_PO_ITEMS: Parent VIM_PO_HEADERS does not exist");
   }
+
+  // Perform the deletion
+    handleCRUD(req, "delete", null, null, null, COLLECTIONS.VIM_PO_ITEMS)
 });
 
-
-  this.on("READ", POItems, req =>
-    mongoRead(COLLECTIONS.POItems, req)
-  );
-
-  this.on("CREATE", POItems, req =>
-    handleCRUD(req, "create", "ItemNumber", req.data.ItemNumber, null, COLLECTIONS.POItems)
-  );
-
-  this.on("UPDATE", POItems, req =>
-    handleCRUD(req, "update", "ItemNumber", req.data.ItemNumber, null, COLLECTIONS.POItems)
-  );
-
-  this.on("DELETE", POItems, req =>
-    handleCRUD(req, "delete", null, null, null, COLLECTIONS.POItems)
-  );
-
-this.before(["CREATE", "UPDATE"], PODispatchAddresses, async(req) => {
+this.before(["CREATE", "UPDATE"], VIM_PO_DISPATCH_ADDR, async(req) => {
   requireKeys(
     req,
     ["PONumber", "PlantCode", "DispatchNumber", "InvoiceBillTrack"],
-    "PODispatchAddresses"
+    "VIM_PO_DISPATCH_ADDR"
   );
 
-  //prevent duplication
-  await ensureNotExists(
-    req,
-    PODispatchAddresses,
-    {
-      PONumber: req.data.PONumber,
-      PlantCode: req.data.PlantCode,
-      DispatchNumber: req.data.DispatchNumber,
-      InvoiceBillTrack: req.data.InvoiceBillTrack
-    },
-    "PODispatchAddresses"
-  );
 
-  const header = await SELECT.one.from(POHeaders).where({
-    PONumber: req.data.PONumber,
-    PlantCode: req.data.PlantCode
-  });
-
+  const header= await parentexists(req, "create", "PONumber", req.data.PONumber, null, COLLECTIONS.VIM_PO_HEADERS)
+  console.log("header is",header)
   if (!header) {
-    req.reject(400, "PODispatchAddresses: Parent POHeader does not exist");
+    req.reject(400, "VIM_PO_ITEMS: Parent VIM_PO_HEADERS does not exist");
+    return;
   }
 });
 
 
-  this.on("READ", PODispatchAddresses, req =>
-    mongoRead(COLLECTIONS.PODispatchAddresses, req)
+  this.on("READ", VIM_PO_DISPATCH_ADDR, req =>
+    mongoRead(COLLECTIONS.VIM_PO_DISPATCH_ADDR, req)
   );
 
-  this.on("CREATE", PODispatchAddresses, req =>
+  this.on("CREATE", VIM_PO_DISPATCH_ADDR, req =>
     handleCRUD(
       req,
       "create",
       "DispatchNumber",
       req.data.DispatchNumber,
       null,
-      COLLECTIONS.PODispatchAddresses
+      COLLECTIONS.VIM_PO_DISPATCH_ADDR
     )
   );
 
-  this.on("UPDATE", PODispatchAddresses, req =>
+  this.on("UPDATE", VIM_PO_DISPATCH_ADDR, req =>
     handleCRUD(
       req,
       "update",
       "DispatchNumber",
       req.data.DispatchNumber,
       null,
-      COLLECTIONS.PODispatchAddresses
+      COLLECTIONS.VIM_PO_DISPATCH_ADDR
     )
   );
 
-  this.on("DELETE", PODispatchAddresses, req =>
-    handleCRUD(req, "delete", null, null, null, COLLECTIONS.PODispatchAddresses)
-  );
+  this.on("DELETE", VIM_PO_DISPATCH_ADDR, async(req) => {
+  const headerExists = await SELECT.one.from(VIM_PO_HEADERS).where({
+    PONumber: req.data.PONumber,
+    PlantCode: req.data.PlantCode
+  });
 
-this.before(["CREATE", "UPDATE"], PODispatchItems, async(req) => {
+  if (!headerExists) {
+    req.reject(400, "VIM_PO_ITEMS: Parent VIM_PO_HEADERS does not exist");
+  }
+
+  // Perform the deletion
+    handleCRUD(req, "delete", null, null, null, COLLECTIONS.VIM_PO_DISPATCH_ADDR)
+});
+
+this.before(["CREATE", "UPDATE"], VIM_PO_DISPATCH_ITEMS, async(req) => {
   requireKeys(
     req,
     ["PONumber", "PlantCode", "DispatchNumber", "ItemNumber"],
-    "PODispatchItems"
+    "VIM_PO_DISPATCH_ITEMS"
   );
 
-  //prevent duplication
-  await ensureNotExists(
-    req,
-    PODispatchItems,
-    {
-      PONumber: req.data.PONumber,
-      PlantCode: req.data.PlantCode,
-      DispatchNumber: req.data.DispatchNumber,
-      ItemNumber: req.data.ItemNumber
-    },
-    "PODispatchItems"
-  );
 
-  const header = await SELECT.one.from(POHeaders).where({
-    PONumber: req.data.PONumber,
-    PlantCode: req.data.PlantCode
-  });
-
+  const header= await parentexists(req, "create", "PONumber", req.data.PONumber, null, COLLECTIONS.VIM_PO_HEADERS)
+  console.log("header is",header)
   if (!header) {
-    req.reject(400, "PODispatchItems: Parent POHeader does not exist");
+    req.reject(400, "VIM_PO_ITEMS: Parent VIM_PO_HEADERS does not exist");
+    return;
   }
 });
 
 
-  this.on("READ", PODispatchItems, req =>
-    mongoRead(COLLECTIONS.PODispatchItems, req)
+  this.on("READ", VIM_PO_DISPATCH_ITEMS, req =>
+    mongoRead(COLLECTIONS.VIM_PO_DISPATCH_ITEMS, req)
   );
 
-  this.on("CREATE", PODispatchItems, async (req) => {
+  this.on("CREATE", VIM_PO_DISPATCH_ITEMS, async (req) => {
     req.data.RemainingQuantity =
       (req.data.OrderedQuantity || 0) -
       (req.data.CurrentDispatchQuantity || 0);
@@ -293,11 +297,11 @@ this.before(["CREATE", "UPDATE"], PODispatchItems, async(req) => {
       "ItemNumber",
       req.data.ItemNumber,
       null,
-      COLLECTIONS.PODispatchItems
+      COLLECTIONS.VIM_PO_DISPATCH_ITEMS
     );
   });
 
-  this.on("UPDATE", PODispatchItems, async (req) => {
+  this.on("UPDATE", VIM_PO_DISPATCH_ITEMS, async (req) => {
     req.data.RemainingQuantity =
       (req.data.OrderedQuantity || 0) -
       (req.data.CurrentDispatchQuantity || 0);
@@ -308,43 +312,53 @@ this.before(["CREATE", "UPDATE"], PODispatchItems, async(req) => {
       "ItemNumber",
       req.data.ItemNumber,
       null,
-      COLLECTIONS.PODispatchItems
+      COLLECTIONS.VIM_PO_DISPATCH_ITEMS
     );
   });
 
-  this.on("DELETE", PODispatchItems, req =>
-    handleCRUD(req, "delete", null, null, null, COLLECTIONS.PODispatchItems)
-  );
+  this.on("DELETE", VIM_PO_DISPATCH_ITEMS, async(req) => {
+  const headerExists = await SELECT.one.from(VIM_PO_HEADERS).where({
+    PONumber: req.data.PONumber,
+    PlantCode: req.data.PlantCode
+  });
+
+  if (!headerExists) {
+    req.reject(400, "VIM_PO_ITEMS: Parent VIM_PO_HEADERS does not exist");
+  }
+
+  // Perform the deletion
+    handleCRUD(req, "delete", null, null, null, COLLECTIONS.VIM_PO_DISPATCH_ITEMS)
+});
 
 
 
-  this.after("READ", PODispatchItems, async (data) => {
+  this.after("READ", VIM_PO_DISPATCH_ITEMS, async (data) => {
     const items = Array.isArray(data) ? data : [data];
 
     await Promise.all(items.map(async (item) => {
       if (!item.PONumber || !item.ItemNumber) return;
 
-      const poItem = await SELECT.one.from(POItems).where({
+      const VIM_PO_ITEMS = await SELECT.one.from(VIM_PO_ITEMS).where({
         PONumber: item.PONumber,
         PlantCode: item.PlantCode,
         ItemNumber: item.ItemNumber
       });
 
-      if (!poItem) {
+      if (!VIM_PO_ITEMS) {
         item.RemainingQuantity = 0;
         return;
       }
 
       const dispatched = await SELECT.one`
         sum(CurrentDispatchQuantity) as sum
-      `.from(PODispatchItems).where({
+      `.from(VIM_PO_DISPATCH_ITEMS).where({
         PONumber: item.PONumber,
         PlantCode: item.PlantCode,
         ItemNumber: item.ItemNumber
       });
 
       item.RemainingQuantity =
-        poItem.OrderedQuantity - (dispatched?.sum || 0);
+        VIM_PO_ITEMS.OrderedQuantity - (dispatched?.sum || 0);
     }));
   });
 

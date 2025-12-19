@@ -1,5 +1,5 @@
 using vim.po.service.POService as service from '../../srv/POService';
-annotate service.POHeaders with @(
+annotate service.VIM_PO_HEADERS with @(
     UI.FieldGroup #GeneratedGroup : {
         $Type : 'UI.FieldGroupType',
         Data : [

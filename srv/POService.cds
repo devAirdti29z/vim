@@ -4,13 +4,13 @@ using { vim.po as db } from '../db/schema';
 
 service POService {
 
-    entity POHeaders as projection on db.POHeader;
+    entity VIM_PO_HEADERS as projection on db.VIM_PO_HEADERS;
 
-    entity POItems as projection on db.POItem;
+    entity VIM_PO_ITEMS as projection on db.VIM_PO_ITEMS;
 
-    entity PODispatchAddresses as projection on db.PODispatchAddress;
+    entity VIM_PO_DISPATCH_ADDR as projection on db.VIM_PO_DISPATCH_ADDR;
 
-    entity PODispatchItems as projection on db.PODispatchItem {
+    entity VIM_PO_DISPATCH_ITEMS as projection on db.VIM_PO_DISPATCH_ITEMS {
             *,
             cast(
                 OrderedQuantity - CurrentDispatchQuantity

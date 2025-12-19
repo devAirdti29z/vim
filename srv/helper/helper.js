@@ -730,6 +730,59 @@ module.exports = {
         return result;
 
     },
+
+    //for strictly following parent-child composition relationship while creating
+    async parentexists(req,action, field, value, data = null,entity){
+         try {
+            console.log("fetching if parent exists");
+
+            const { database } = await getConnection();
+            const collection = database.collection(entity);
+
+                const parent = await collection.findOne({ [field]: value });
+                if (!parent) {
+                    //throw new Error(`${field} with value ${value} does not already exists.`);
+                    req.reject(400, "VIM_PO_ITEMS: Parent VIM_PO_HEADERS does not exist");
+                    return;
+                }
+                return parent;
+
+                } catch (error) {
+            console.error(`Error in ${action} operation:`, error);
+            throw error;
+        }
+
+    },
+
+
+      //for strictly following parent-child composition relationship while deletion
+        async cascadeDelete(req, action, field, value, data = null, child1entity,child2entity,child3entity) {
+        try {
+            console.log("parent is deleted");
+
+            const { database } = await getConnection();
+            const child1 = database.collection(child1entity);
+            const child2 = database.collection(child2entity);
+            const child3 = database.collection(child3entity);
+
+
+
+            console.log(action);
+            if (action === 'delete') {
+
+                const result1 = await child1.deleteOne({ [field]: value });
+                const result2 = await child2.deleteOne({ [field]: value });
+                const result3 = await child3.deleteOne({ [field]: value });
+
+
+                return true;
+            }
+
+        } catch (error) {
+            console.error(`Error in ${action} operation:`, error);
+            throw error;
+        }
+    },
     async handleCRUD(req, action, field, value, data = null, entity) {
         try {
             console.log(entity, "fvg");

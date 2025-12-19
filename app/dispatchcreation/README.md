@@ -16,7 +16,7 @@
 |**Enable Code Assist Libraries**<br>False|
 |**Enable TypeScript**<br>False|
 |**Add Eslint configuration**<br>False|
-|**Main Entity**<br>POHeaders|
+|**Main Entity**<br>VIM_PO_HEADERS|
 |**Navigation Entity**<br>None|
 
 ## dispatchcreation

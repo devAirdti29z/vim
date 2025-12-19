@@ -63,7 +63,7 @@ function buildBatchBody(asnItems, deliveryDateStr) {
     } = item;
 
     body += `--${changeset11}\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\n`;
-    body += `PUT ZP_MM_ASNPOITEM(Ebeln='${Ebeln}',Ebelp='${Ebelp}') HTTP/1.1\r\nContent-Type: application/json\r\n\r\n`;
+    body += `PUT ZP_MM_ASNVIM_PO_ITEM(Ebeln='${Ebeln}',Ebelp='${Ebelp}') HTTP/1.1\r\nContent-Type: application/json\r\n\r\n`;
     body +=
       JSON.stringify({
         Ebeln,
@@ -81,7 +81,7 @@ function buildBatchBody(asnItems, deliveryDateStr) {
 
   body += `--${boundary}\r\nContent-Type: multipart/mixed; boundary=${changeset13}\r\n\r\n`;
   body += `--${changeset13}\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\n`;
-  body += `POST ZP_MM_ASNPOITEM(Ebeln='${asnItems[0].Ebeln}',Ebelp='${asnItems[0].Ebelp}')/to_shipheaddet HTTP/1.1\r\nContent-Type: application/json\r\n\r\n`;
+  body += `POST ZP_MM_ASNVIM_PO_ITEM(Ebeln='${asnItems[0].Ebeln}',Ebelp='${asnItems[0].Ebelp}')/to_shipheaddet HTTP/1.1\r\nContent-Type: application/json\r\n\r\n`;
   body += JSON.stringify({ Deliverydate: formattedDeliveryDate }) + `\r\n`;
   body += `--${changeset13}--\r\n`;
 

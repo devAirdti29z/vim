@@ -20,7 +20,7 @@ const DB_NAME = 'VendorPortal-Airdit';
 let db;
 
 module.exports = cds.service.impl(async function() {
-    const { POHeaders,PODispatchAddresses,PODispatchItems, POItems } = this.entities;
+    const { VIM_PO_HEADERS,VIM_PO_DISPATCH_ADDR,VIM_PO_DISPATCH_ITEMS, VIM_PO_ITEMS } = this.entities;
     try {
     const client = new MongoClient(MONGO_URI, { useUnifiedTopology: true });
     await client.connect();
@@ -30,9 +30,9 @@ module.exports = cds.service.impl(async function() {
     console.error('❌ MongoDB connection error:', err);
   }
 
-  /*POHeaders*/
+  /*VIM_PO_HEADERS*/
 
-this.on("CREATE", POHeaders, async (req) => {
+this.on("CREATE", VIM_PO_HEADERS, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_HEADERS");
@@ -54,12 +54,12 @@ this.on("CREATE", POHeaders, async (req) => {
     return payload;
 
   } catch (err) {
-    console.error("Error creating POHeader:", err);
-    return req.reject(500, "Failed to create POHeader");
+    console.error("Error creating VIM_PO_HEADER:", err);
+    return req.reject(500, "Failed to create VIM_PO_HEADER");
   }
 });
 
-  this.on("READ", POHeaders, async (req) => {
+  this.on("READ", VIM_PO_HEADERS, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_HEADERS");
@@ -72,12 +72,12 @@ this.on("CREATE", POHeaders, async (req) => {
 
     return data;
   } catch (err) {
-    console.error("Error reading POHeaders:", err);
-    return req.reject(500, "Failed to read POHeaders");
+    console.error("Error reading VIM_PO_HEADERS:", err);
+    return req.reject(500, "Failed to read VIM_PO_HEADERS");
   }
 });
 
-this.on("UPDATE", POHeaders, async (req) => {
+this.on("UPDATE", VIM_PO_HEADERS, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_HEADERS");
@@ -88,7 +88,7 @@ this.on("UPDATE", POHeaders, async (req) => {
     };
 
     const existing = await collection.findOne(key);
-    if (!existing) return req.reject(404, "POHeader not found");
+    if (!existing) return req.reject(404, "VIM_PO_HEADER not found");
 
     const updateFields = {
       ...req.data,
@@ -99,12 +99,12 @@ this.on("UPDATE", POHeaders, async (req) => {
     return { ...key, ...updateFields };
 
   } catch (err) {
-    console.error("Error updating POHeader:", err);
-    return req.reject(500, "Failed to update POHeader");
+    console.error("Error updating VIM_PO_HEADER:", err);
+    return req.reject(500, "Failed to update VIM_PO_HEADER");
   }
 });
 
-this.on("DELETE", POHeaders, async (req) => {
+this.on("DELETE", VIM_PO_HEADERS, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_HEADERS");
@@ -115,18 +115,18 @@ this.on("DELETE", POHeaders, async (req) => {
     };
 
     const result = await collection.deleteOne(key);
-    if (!result.deletedCount) return req.reject(404, "POHeader not found");
+    if (!result.deletedCount) return req.reject(404, "VIM_PO_HEADER not found");
 
-    return { message: "POHeader deleted successfully" };
+    return { message: "VIM_PO_HEADER deleted successfully" };
 
   } catch (err) {
-    console.error("Error deleting POHeader:", err);
-    return req.reject(500, "Failed to delete POHeader");
+    console.error("Error deleting VIM_PO_HEADER:", err);
+    return req.reject(500, "Failed to delete VIM_PO_HEADER");
   }
 });
 
-/*POItems*/
-this.on("CREATE", POItems, async (req) => {
+/*VIM_PO_ITEMS*/
+this.on("CREATE", VIM_PO_ITEMS, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_ITEMS");
@@ -146,12 +146,12 @@ this.on("CREATE", POItems, async (req) => {
     return payload;
 
   } catch (err) {
-    console.error("Error creating POItem:", err);
-    return req.reject(500, "Failed to create POItem");
+    console.error("Error creating VIM_PO_ITEM:", err);
+    return req.reject(500, "Failed to create VIM_PO_ITEM");
   }
 });
 
-this.on("READ", POItems, async (req) => {
+this.on("READ", VIM_PO_ITEMS, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_ITEMS");
@@ -164,12 +164,12 @@ this.on("READ", POItems, async (req) => {
 
     return data;
   } catch (err) {
-    console.error("Error reading POItems:", err);
-    return req.reject(500, "Failed to read POItems");
+    console.error("Error reading VIM_PO_ITEMS:", err);
+    return req.reject(500, "Failed to read VIM_PO_ITEMS");
   }
 });
 
-this.on("UPDATE", POItems, async (req) => {
+this.on("UPDATE", VIM_PO_ITEMS, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_ITEMS");
@@ -181,7 +181,7 @@ this.on("UPDATE", POItems, async (req) => {
     };
 
     const existing = await collection.findOne(key);
-    if (!existing) return req.reject(404, "POItem not found");
+    if (!existing) return req.reject(404, "VIM_PO_ITEM not found");
 
     await collection.updateOne(key, {
       $set: { ...req.data, modifiedAt: new Date().toISOString() }
@@ -190,12 +190,12 @@ this.on("UPDATE", POItems, async (req) => {
     return { ...key, ...req.data };
 
   } catch (err) {
-    console.error("Error updating POItem:", err);
-    return req.reject(500, "Failed to update POItem");
+    console.error("Error updating VIM_PO_ITEM:", err);
+    return req.reject(500, "Failed to update VIM_PO_ITEM");
   }
 });
 
-this.on("DELETE", POItems, async (req) => {
+this.on("DELETE", VIM_PO_ITEMS, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_ITEMS");
@@ -207,19 +207,19 @@ this.on("DELETE", POItems, async (req) => {
     };
 
     const result = await collection.deleteOne(key);
-    if (!result.deletedCount) return req.reject(404, "POItem not found");
+    if (!result.deletedCount) return req.reject(404, "VIM_PO_ITEM not found");
 
-    return { message: "POItem deleted successfully" };
+    return { message: "VIM_PO_ITEM deleted successfully" };
 
   } catch (err) {
-    console.error("Error deleting POItem:", err);
-    return req.reject(500, "Failed to delete POItem");
+    console.error("Error deleting VIM_PO_ITEM:", err);
+    return req.reject(500, "Failed to delete VIM_PO_ITEM");
   }
 });
 
-/*PODispatchAddresses*/
+/*VIM_PO_DISPATCH_ADDR*/
 
-this.on("CREATE", PODispatchAddresses, async (req) => {
+this.on("CREATE", VIM_PO_DISPATCH_ADDR, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_DISPATCH_ADDR");
@@ -238,7 +238,7 @@ this.on("CREATE", PODispatchAddresses, async (req) => {
   }
 });
 
-this.on("READ", PODispatchAddresses, async (req) => {
+this.on("READ", VIM_PO_DISPATCH_ADDR, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_DISPATCH_ADDR");
@@ -251,12 +251,12 @@ this.on("READ", PODispatchAddresses, async (req) => {
 
     return data;
   } catch (err) {
-    console.error("Error reading PODispatchAddresses:", err);
+    console.error("Error reading VIM_PO_DISPATCH_ADDR:", err);
     return req.reject(500, "Failed to read Dispatch Addresses");
   }
 });
 
-this.on("UPDATE", PODispatchAddresses, async (req) => {
+this.on("UPDATE", VIM_PO_DISPATCH_ADDR, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_DISPATCH_ADDR");
@@ -280,12 +280,12 @@ this.on("UPDATE", PODispatchAddresses, async (req) => {
     return { ...key, ...updateFields };
 
   } catch (err) {
-    console.error("Error updating PODispatchAddresses:", err);
+    console.error("Error updating VIM_PO_DISPATCH_ADDR:", err);
     return req.reject(500, "Failed to update Dispatch Address");
   }
 });
 
-this.on("DELETE", PODispatchAddresses, async (req) => {
+this.on("DELETE", VIM_PO_DISPATCH_ADDR, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_DISPATCH_ADDR");
@@ -305,15 +305,15 @@ this.on("DELETE", PODispatchAddresses, async (req) => {
     return { message: "Dispatch Address deleted successfully" };
 
   } catch (err) {
-    console.error("Error deleting PODispatchAddresses:", err);
+    console.error("Error deleting VIM_PO_DISPATCH_ADDR:", err);
     return req.reject(500, "Failed to delete Dispatch Address");
   }
 });
 
 
-/*PODispatchItems*/
+/*VIM_PO_DISPATCH_ITEMS*/
 
-this.on("CREATE", PODispatchItems, async (req) => {
+this.on("CREATE", VIM_PO_DISPATCH_ITEMS, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_DISPATCH_ITEMS");
@@ -335,7 +335,7 @@ this.on("CREATE", PODispatchItems, async (req) => {
   }
 });
 
-this.on("READ", PODispatchItems, async (req) => {
+this.on("READ", VIM_PO_DISPATCH_ITEMS, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_DISPATCH_ITEMS");
@@ -348,12 +348,12 @@ this.on("READ", PODispatchItems, async (req) => {
 
     return data;
   } catch (err) {
-    console.error("Error reading PODispatchItems:", err);
+    console.error("Error reading VIM_PO_DISPATCH_ITEMS:", err);
     return req.reject(500, "Failed to read Dispatch Items");
   }
 });
 
-this.on("UPDATE", PODispatchItems, async (req) => {
+this.on("UPDATE", VIM_PO_DISPATCH_ITEMS, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_DISPATCH_ITEMS");
@@ -380,11 +380,11 @@ this.on("UPDATE", PODispatchItems, async (req) => {
     return { ...key, ...updateFields };
 
   } catch (err) {
-    console.error("Error updating PODispatchItems:", err);
+    console.error("Error updating VIM_PO_DISPATCH_ITEMS:", err);
     return req.reject(500, "Failed to update Dispatch Item");
   }
 });
-this.on("DELETE", PODispatchItems, async (req) => {
+this.on("DELETE", VIM_PO_DISPATCH_ITEMS, async (req) => {
   try {
     const { database } = await getConnection();
     const collection = database.collection("AISP_PO_DISPATCH_ITEMS");
@@ -404,28 +404,28 @@ this.on("DELETE", PODispatchItems, async (req) => {
     return { message: "Dispatch Item deleted successfully" };
 
   } catch (err) {
-    console.error("Error deleting PODispatchItems:", err);
+    console.error("Error deleting VIM_PO_DISPATCH_ITEMS:", err);
     return req.reject(500, "Failed to delete Dispatch Item");
   }
 });
 
 
     // virtual rem quantity calculation
-    this.after('READ', 'PODispatchItems', async (data, req) => {
+    this.after('READ', 'VIM_PO_DISPATCH_ITEMS', async (data, req) => {
         // Handle both single object and array of objects
         const items = Array.isArray(data) ? data : [data];
 
         await Promise.all(items.map(async (item) => {
             if (!item.PONumber || !item.ItemNumber) return;
 
-            //Get the original total ordered quantity from POItem
-            const poItem = await SELECT.one.from(POItems).where({
+            //Get the original total ordered quantity from VIM_PO_ITEM
+            const VIM_PO_ITEM = await SELECT.one.from(VIM_PO_ITEMS).where({
                 PONumber: item.PONumber,
                 PlantCode: item.PlantCode,
                 ItemNumber: item.ItemNumber
             });
 
-            if (!poItem) {
+            if (!VIM_PO_ITEM) {
                 item.RemainingQuantity = 0;
                 return;
             }
@@ -433,7 +433,7 @@ this.on("DELETE", PODispatchItems, async (req) => {
             // 2. Sum up ALL "CurrentDispatchQuantity" already recorded for this specific Item
             // Note: We exclude the current dispatch record if we only want to see what was left BEFORE this entry
             const totalDispatchedResult = await SELECT.one`sum(CurrentDispatchQuantity) as sum`
-                .from(PODispatchItems)
+                .from(VIM_PO_DISPATCH_ITEMS)
                 .where({
                     PONumber: item.PONumber,
                     PlantCode: item.PlantCode,
@@ -443,7 +443,7 @@ this.on("DELETE", PODispatchItems, async (req) => {
             const totalDispatched = totalDispatchedResult.sum || 0;
 
             // Remaining = Original PO Qty - All Dispatches
-            item.RemainingQuantity = poItem.OrderedQuantity - totalDispatched;
+            item.RemainingQuantity = VIM_PO_ITEM.OrderedQuantity - totalDispatched;
         }));
     });
 });

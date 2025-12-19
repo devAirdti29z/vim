@@ -10,7 +10,7 @@ sap.ui.define([
         opaTest("Start application", function (Given, When, Then) {
             Given.iStartMyApp();
 
-            Then.onThePOHeadersList.iSeeThisPage();
+            Then.onTheVIM_PO_HEADERSList.iSeeThisPage();
 
         });
 
@@ -18,12 +18,12 @@ sap.ui.define([
         opaTest("Navigate to ObjectPage", function (Given, When, Then) {
             // Note: this test will fail if the ListReport page doesn't show any data
             
-            When.onThePOHeadersList.onFilterBar().iExecuteSearch();
+            When.onTheVIM_PO_HEADERSList.onFilterBar().iExecuteSearch();
             
-            Then.onThePOHeadersList.onTable().iCheckRows();
+            Then.onTheVIM_PO_HEADERSList.onTable().iCheckRows();
 
-            When.onThePOHeadersList.onTable().iPressRow(0);
-            Then.onThePOHeadersObjectPage.iSeeThisPage();
+            When.onTheVIM_PO_HEADERSList.onTable().iPressRow(0);
+            Then.onTheVIM_PO_HEADERSObjectPage.iSeeThisPage();
 
         });
 

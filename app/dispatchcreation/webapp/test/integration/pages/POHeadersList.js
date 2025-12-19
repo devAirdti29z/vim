@@ -9,8 +9,8 @@ sap.ui.define(['sap/fe/test/ListReport'], function(ListReport) {
     return new ListReport(
         {
             appId: 'dispatchcreation',
-            componentId: 'POHeadersList',
-            contextPath: '/POHeaders'
+            componentId: 'VIM_PO_HEADERSList',
+            contextPath: '/VIM_PO_HEADERS'
         },
         CustomPageDefinitions
     );

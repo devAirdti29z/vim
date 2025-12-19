@@ -21,7 +21,7 @@
     "entityRelatedConfig": [
       {
         "type": "Main Entity",
-        "value": "POHeaders"
+        "value": "VIM_PO_HEADERS"
       },
       {
         "type": "Navigation Entity",
