@@ -12,13 +12,29 @@ const {
 } = require("../Library/mongo-helper");
 
 
-const MONGO_URI = 'mongodb+srv://Vaibhav:D7tY3V0VTWi5Am0w@aisp.smrk0zv.mongodb.net/';
-const DB_NAME = 'VendorPortal-Airdit';
 
 
+//strict deep insert validation to check po number and plant code are unique for parent and child //not working properly for now
+function validateDeepInsertKeys(req) {
+  const parentKeys = ["PONumber", "PlantCode"];
+  const children = [
+    "VIM_PO_ITEMS",
+    "VIM_PO_DISPATCH_ADDR",
+    "VIM_PO_DISPATCH_ITEMS"
+  ];
 
-let db;
-
+  children.forEach(childName => {
+    const arr = req.data[childName];
+    if (!arr) return; // no child array provided
+    arr.forEach((child, idx) => {
+      parentKeys.forEach(key => {
+        if (!child.hasOwnProperty(key) || child[key] !== req.data[key]) {
+          req.error(400, `${childName}[${idx}]: ${key} must match VIM_PO_HEADERS ${key}`);
+        }
+      });
+    });
+  });
+}
 module.exports = cds.service.impl(async function() {
     const { VIM_PO_HEADERS,VIM_PO_DISPATCH_ADDR,VIM_PO_DISPATCH_ITEMS, VIM_PO_ITEMS } = this.entities;
     try {

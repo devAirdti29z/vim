@@ -1,68 +1,5 @@
 const cds = require("@sap/cds");
-const { mongoRead, handleCRUD, parentexists, parentDeleted } = require("./helper/helper");
-
-
-//for keys not null validation
-function requireKeys(req, keys, entityName) {
-  const missing = keys.filter(
-    k => req.data[k] === undefined || req.data[k] === null || req.data[k] === ""
-  );
-
-  if (missing.length) {
-    req.reject(
-      400,
-      `${entityName}: Missing mandatory key field(s): ${missing.join(", ")}`
-    );
-  }
-}
-
-
-
-//children must carry same parent keys as VIM_PO_HEADERS
-function ensureParentKeysMatch(req, parent, children, keyFields) {
-  if (!req.data[children]) return;
-
-  for (const child of req.data[children]) {
-    keyFields.forEach(k => {
-      if (child[k] !== req.data[k]) {
-        req.reject(
-          400,
-          `${children}: ${k} must match VIM_PO_HEADERS ${k}`
-        );
-      }
-    });
-  }
-}
-//strict deep insert validation //not working properly for now
-function validateDeepInsertKeys(req) {
-  const parentKeys = ["PONumber", "PlantCode"];
-  const children = [
-    "VIM_PO_ITEMS",
-    "VIM_PO_DISPATCH_ADDR",
-    "VIM_PO_DISPATCH_ITEMS"
-  ];
-
-  children.forEach(childName => {
-    const arr = req.data[childName];
-    if (!arr) return; // no child array provided
-    arr.forEach((child, idx) => {
-      parentKeys.forEach(key => {
-        if (!child.hasOwnProperty(key) || child[key] !== req.data[key]) {
-          req.error(400, `${childName}[${idx}]: ${key} must match VIM_PO_HEADERS ${key}`);
-        }
-      });
-    });
-  });
-}
-
-//Cascade delete enforcement at Mongo level
-async function cascadeDelete(parentKeys, childCollections, parentCollection) {
-  for (const col of childCollections) {
-    await db.collection(col).deleteMany(parentKeys);
-  }
-  await db.collection(parentCollection).deleteOne(parentKeys);
-}
-
+const { mongoRead, handleCRUD, parentexists, cascadeDelete,requireKeys } = require("./helper/helper");
 
 module.exports = cds.service.impl(async function () {
 
@@ -85,68 +22,44 @@ this.before(["CREATE", "UPDATE"], VIM_PO_HEADERS, async(req) => {
   requireKeys(req, ["PONumber", "PlantCode"], "VIM_PO_HEADERS");
 
 
-  validateDeepInsertKeys(req); //not working properly
-  //Deep-insert, keys match
-  // ensureParentKeysMatch(
-  //   req,
-  //   VIM_PO_HEADERS,
-  //   "VIM_PO_ITEMS",
-  //   ["PONumber", "PlantCode"]
-  // );
-
-  
-  // ensureParentKeysMatch(
-  //   req,
-  //   VIM_PO_HEADERS,
-  //   "VIM_PO_DISPATCH_ADDR",
-  //   ["PONumber", "PlantCode"]
-  // );
-
-  
-  // ensureParentKeysMatch(
-  //   req,
-  //   VIM_PO_HEADERS,
-  //   "VIM_PO_DISPATCH_ITEMS",
-  //   ["PONumber", "PlantCode"]
-  // );
 });
 
 
-  // this.on("READ", VIM_PO_HEADERS, req =>
-  //   console.log("req is",req),
-  //   mongoRead(COLLECTIONS.VIM_PO_HEADERS, req, [
-  //     { name: "VIM_PO_ITEMS" },
-  //     { name: "VIM_PO_DISPATCH_ADDR" }
-  //   ])
-  // );
 this.on("READ", VIM_PO_HEADERS, async (req) => {
   console.log("READ POHeaders req:", req);
 
-  // return mongoRead(
-  //   COLLECTIONS.VIM_PO_HEADERS,
-  //   req
-  // );
+  const { expand } = req.query;
+  let expandedData = {};
 
-  // handle $expand option
-        const { expand } = req.query;
-        let expandedData = {};
-        
-        // Handle expand for related entities
-        if (expand && expand.includes('VIM_PO_ITEMS')) {
-            expandedData['VIM_PO_ITEMS'] = await mongoRead("VIM_PO_ITEMS", req.data.PONumber, req.data.PlantCode);
-        }
-        if (expand && expand.includes('VIM_PO_DISPATCH_ADDR')) {
-            expandedData['VIM_PO_DISPATCH_ADDR'] = await mongoRead("VIM_PO_DISPATCH_ADDR", req.data.PONumber, req.data.PlantCode);
-        }
-        if (expand && expand.includes('VIM_PO_DISPATCH_ITEMS')) {
-            expandedData['VIM_PO_DISPATCH_ITEMS'] = await mongoRead("VIM_PO_DISPATCH_ITEMS", req.data.PONumber, req.data.PlantCode);
-        }
+  const parentData = await mongoRead(COLLECTIONS.VIM_PO_HEADERS, req);
 
-        // Combine parent data with expanded data
-        const parentData = await mongoRead("VIM_PO_HEADERS", req.data.PONumber, req.data.PlantCode);
-        return { ...parentData, ...expandedData };
-    });
+  if (expand) {
+    if (expand.includes('VIM_PO_ITEMS')) {
+      expandedData['VIM_PO_ITEMS'] = await mongoRead(
+        COLLECTIONS.VIM_PO_ITEMS,
+        { PONumber: req.data.PONumber, PlantCode: req.data.PlantCode }
+      );
+    }
+
+    if (expand.includes('VIM_PO_DISPATCH_ADDR')) {
+      expandedData['VIM_PO_DISPATCH_ADDR'] = await mongoRead(
+        COLLECTIONS.VIM_PO_DISPATCH_ADDR,
+        { PONumber: req.data.PONumber, PlantCode: req.data.PlantCode }
+      );
+    }
+
+    if (expand.includes('VIM_PO_DISPATCH_ITEMS')) {
+      expandedData['VIM_PO_DISPATCH_ITEMS'] = await mongoRead(
+        COLLECTIONS.VIM_PO_DISPATCH_ITEMS,
+        { PONumber: req.data.PONumber, PlantCode: req.data.PlantCode }
+      );
+    }
+  }
+
+  return { ...parentData, ...expandedData };
 });
+
+
 
   this.on("CREATE", VIM_PO_HEADERS, req =>
     handleCRUD(req, "create", "PONumber", req.data.PONumber, null, COLLECTIONS.VIM_PO_HEADERS)
@@ -159,8 +72,8 @@ this.on("READ", VIM_PO_HEADERS, async (req) => {
   this.on("DELETE", VIM_PO_HEADERS, async(req) =>{
     await handleCRUD(req, "delete", null, null, null, COLLECTIONS.VIM_PO_HEADERS)
 
-    //casdade delete
-    await cascadeDelete(req, "delete", null, null, null, COLLECTIONS.VIM_PO_ITEMS,COLLECTIONS.VIM_PO_DISPATCH_ADDR,COLLECTIONS.VIM_PO_DISPATCH_ITEMS)
+    //cascade delete
+    await cascadeDelete(req, "delete", null, null, null, [COLLECTIONS.VIM_PO_ITEMS,COLLECTIONS.VIM_PO_DISPATCH_ADDR,COLLECTIONS.VIM_PO_DISPATCH_ITEMS])
 
 
     return { message: "VIM_PO_HEADERS and all child records deleted successfully" };
@@ -173,7 +86,7 @@ this.before(["CREATE", "UPDATE"], VIM_PO_ITEMS, async(req) => {
     "VIM_PO_ITEMS"
   );
 
-const header= await parentexists(req, "create", "PONumber", req.data.PONumber, null, COLLECTIONS.VIM_PO_HEADERS)
+const header= await parentexists(req, "create", "PONumber","PlantCode", req.data.PONumber, req.data.PlantCode, null, COLLECTIONS.VIM_PO_HEADERS)
 console.log("header is",header)
   if (!header) {
     req.reject(400, "VIM_PO_ITEMS: Parent VIM_PO_HEADERS does not exist");

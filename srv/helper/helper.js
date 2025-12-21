@@ -732,14 +732,18 @@ module.exports = {
     },
 
     //for strictly following parent-child composition relationship while creating
-    async parentexists(req,action, field, value, data = null,entity){
+    async parentexists(req,action, field, value,data = null,entity){
          try {
             console.log("fetching if parent exists");
 
             const { database } = await getConnection();
             const collection = database.collection(entity);
 
-                const parent = await collection.findOne({ [field]: value });
+                const parent = await collection.findOne({  
+                    [field]:value
+                    
+         });
+       
                 if (!parent) {
                     //throw new Error(`${field} with value ${value} does not already exists.`);
                     req.reject(400, "VIM_PO_ITEMS: Parent VIM_PO_HEADERS does not exist");
@@ -756,33 +760,46 @@ module.exports = {
 
 
       //for strictly following parent-child composition relationship while deletion
-        async cascadeDelete(req, action, field, value, data = null, child1entity,child2entity,child3entity) {
-        try {
-            console.log("parent is deleted");
+    async cascadeDelete(req, action, field, value, data = null, childEntities) {
+    try {
+        console.log("Parent is deleted");
 
-            const { database } = await getConnection();
-            const child1 = database.collection(child1entity);
-            const child2 = database.collection(child2entity);
-            const child3 = database.collection(child3entity);
+        const { database } = await getConnection();
 
-
-
-            console.log(action);
-            if (action === 'delete') {
-
-                const result1 = await child1.deleteOne({ [field]: value });
-                const result2 = await child2.deleteOne({ [field]: value });
-                const result3 = await child3.deleteOne({ [field]: value });
-
-
-                return true;
+        console.log(action);
+        if (action === 'delete') {
+            
+            for (let entity of childEntities) {
+                const childCollection = database.collection(entity);
+                const result = await childCollection.deleteOne({ [field]: value });
+                if (result.deletedCount === 0) {
+                    console.log(`No records found to delete in ${entity}`);
+                } else {
+                    console.log(`${result.deletedCount} records deleted in ${entity}`);
+                }
             }
 
-        } catch (error) {
-            console.error(`Error in ${action} operation:`, error);
-            throw error;
+            return true;
         }
-    },
+    } catch (error) {
+        console.error(`Error in ${action} operation:`, error);
+        throw error;
+    }
+},
+//for keys not null validation
+async requireKeys(req, keys, entityName) {
+
+  const missing = keys.filter(
+    k => req.data[k] === undefined || req.data[k] === null || req.data[k] === ""
+  );
+
+  if (missing.length) {
+    req.reject(
+      400,
+      `${entityName}: Missing mandatory key field(s): ${missing.join(", ")}`
+    );
+  }
+},
     async handleCRUD(req, action, field, value, data = null, entity) {
         try {
             console.log(entity, "fvg");
