@@ -4,6 +4,18 @@ const { v4: uuidv4 } = require('uuid');
 const { Decimal128 } = require("mongodb");
 const cds = require("@sap/cds");
 
+//aggregation pipeline
+
+/**
+ * Generic MongoDB Aggregation function to calculate RemainingQuantity
+ * @param {string} collectionName - The collection name where the aggregation will be performed.
+ * @param {object} queryParams - The parameters to filter the records, e.g., PONumber, PlantCode, ItemNumber.
+ * @param {string} itemField - The field used for grouping, typically "ItemNumber".
+ * @param {string} orderedField - The field for ordered quantity, typically "OrderedQuantity".
+ * @param {string} dispatchedField - The field for dispatched quantity, typically "CurrentDispatchQuantity".
+ * @returns {Promise<Array>} - Returns the aggregation result with RemainingQuantity calculated.
+ */
+
 function mongoCollName(def, entityMapping) {
     const fullName = def["@cds.persistence.name"] || def.name;
     const parts = fullName.split(".");
@@ -312,8 +324,7 @@ async function handleExpand(selectedFields, childTables, req) {
 }
 
 
-module.exports = {
-    async mongoRead(entity, req, childTables) {
+    async function mongoRead(entity, req, childTables) {
         const { database } = await getConnection();
         const collection = database.collection(entity);
 
@@ -729,10 +740,10 @@ module.exports = {
         result.$count = total
         return result;
 
-    },
+    }
 
     //for strictly following parent-child composition relationship while creating
-    async parentexists(req,action, field, value,data = null,entity){
+    async function parentexists(req,action, field, value,data = null,entity){
          try {
             console.log("fetching if parent exists");
 
@@ -756,11 +767,10 @@ module.exports = {
             throw error;
         }
 
-    },
-
+    }
 
       //for strictly following parent-child composition relationship while deletion
-    async cascadeDelete(req, action, field, value, data = null, childEntities) {
+    async function cascadeDelete(req, action, field, value, data = null, childEntities) {
     try {
         console.log("Parent is deleted");
 
@@ -785,9 +795,9 @@ module.exports = {
         console.error(`Error in ${action} operation:`, error);
         throw error;
     }
-},
+}
 //for keys not null validation
-async requireKeys(req, keys, entityName) {
+async function requireKeys(req, keys, entityName) {
 
   const missing = keys.filter(
     k => req.data[k] === undefined || req.data[k] === null || req.data[k] === ""
@@ -799,8 +809,60 @@ async requireKeys(req, keys, entityName) {
       `${entityName}: Missing mandatory key field(s): ${missing.join(", ")}`
     );
   }
-},
-    async handleCRUD(req, action, field, value, data = null, entity) {
+}
+
+async function calculateRemainingQuantity(
+  collectionName,
+  queryParams,
+  itemField = "ItemNumber",
+  orderedField = "OrderedQuantity",
+  dispatchedField = "CurrentDispatchQuantity"
+) {
+  try {
+    // Connect to the MongoDB database
+    const { database } = await getConnection();
+    const collection = database.collection(collectionName);
+
+    // MongoDB Aggregation pipeline
+    const aggregationPipeline = [
+      { 
+        $match: queryParams  // Match based on PONumber, PlantCode, and ItemNumber
+      },
+      { 
+        $group: { 
+          _id: `$${itemField}`,  // Group by ItemNumber
+          totalDispatched: { $sum: `$${dispatchedField}` },  // Sum of dispatched quantity
+        }
+      },
+      {
+        $lookup: {
+          from: collectionName === "VIM_PO_DISPATCH_ITEMS" ? "VIM_PO_ITEMS" : collectionName,  // Join with appropriate collection
+          localField: "_id",      // Use the _id from the group (ItemNumber)
+          foreignField: itemField,  // Join condition on ItemNumber
+          as: "itemDetails"  // Alias for the result
+        }
+      },
+      { 
+        $unwind: "$itemDetails"  // Unwind to flatten the result of the lookup
+      },
+      { 
+        $project: {  // Project the remaining quantity calculation
+          RemainingQuantity: {
+            $subtract: ["$itemDetails." + orderedField, "$totalDispatched"]  // Calculate RemainingQuantity
+          }
+        }
+      },
+    ];
+
+    // Perform aggregation query
+    const result = await collection.aggregate(aggregationPipeline).toArray();
+    return result;
+  } catch (error) {
+    console.error("Error in aggregation function:", error);
+    throw error;
+  }
+}
+    async function handleCRUD(req, action, field, value, data = null, entity) {
         try {
             console.log(entity, "fvg");
 
@@ -889,8 +951,8 @@ async requireKeys(req, keys, entityName) {
             console.error(`Error in ${action} operation:`, error);
             throw error;
         }
-    },
-    async handleCRUDForSeverity(req, action, field, value, data = null, entity) {
+    }
+    async function handleCRUDForSeverity(req, action, field, value, data = null, entity) {
         try {
 
             const { database } = await getConnection();
@@ -972,4 +1034,18 @@ async requireKeys(req, keys, entityName) {
         }
     }
 
+
+module.exports = {
+  calculateRemainingQuantity,
+  handleCRUD,
+  handleCRUDForSeverity,
+  mongoRead,
+  parentexists,
+  requireKeys,
+  cascadeDelete,
+  mongoCollName,
+  normalizeObject,
+  castToType,
+  isAssociation,
+  handleExpand
 };

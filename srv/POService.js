@@ -1,5 +1,5 @@
 const cds = require("@sap/cds");
-const { mongoRead, handleCRUD, parentexists, cascadeDelete,requireKeys } = require("./helper/helper");
+const { mongoRead, handleCRUD, parentexists, cascadeDelete,requireKeys, calculateRemainingQuantity } = require("./helper/helper");
 
 module.exports = cds.service.impl(async function () {
 
@@ -244,35 +244,53 @@ this.before(["CREATE", "UPDATE"], VIM_PO_DISPATCH_ITEMS, async(req) => {
 });
 
 
+this.on("READ", VIM_PO_DISPATCH_ITEMS, async (req) => {
+  // Define query parameters for filtering the data (e.g., PONumber, PlantCode, etc.)
+  const queryParams = {
+    PONumber: req.data.PONumber,
+    PlantCode: req.data.PlantCode
+  };
 
-  this.after("READ", VIM_PO_DISPATCH_ITEMS, async (data) => {
-    const items = Array.isArray(data) ? data : [data];
+  // Use the generic aggregation function to calculate RemainingQuantity
+  const result = await calculateRemainingQuantity(
+    "VIM_PO_DISPATCH_ITEMS", // The collection name
+    queryParams,             // The query params (filter)
+    "ItemNumber",            // The item field to group by
+    "OrderedQuantity",       // The ordered quantity field
+    "CurrentDispatchQuantity" // The dispatched quantity field
+  );
 
-    await Promise.all(items.map(async (item) => {
-      if (!item.PONumber || !item.ItemNumber) return;
+  // Return the result (calculated RemainingQuantity)
+  return result;
+});
+  // this.after("READ", VIM_PO_DISPATCH_ITEMS, async (data) => {
+  //   const items = Array.isArray(data) ? data : [data];
 
-      const VIM_PO_ITEMS = await SELECT.one.from(VIM_PO_ITEMS).where({
-        PONumber: item.PONumber,
-        PlantCode: item.PlantCode,
-        ItemNumber: item.ItemNumber
-      });
+  //   await Promise.all(items.map(async (item) => {
+  //     if (!item.PONumber || !item.ItemNumber) return;
 
-      if (!VIM_PO_ITEMS) {
-        item.RemainingQuantity = 0;
-        return;
-      }
+  //     const VIM_PO_ITEMS = await SELECT.one.from(VIM_PO_ITEMS).where({
+  //       PONumber: item.PONumber,
+  //       PlantCode: item.PlantCode,
+  //       ItemNumber: item.ItemNumber
+  //     });
 
-      const dispatched = await SELECT.one`
-        sum(CurrentDispatchQuantity) as sum
-      `.from(VIM_PO_DISPATCH_ITEMS).where({
-        PONumber: item.PONumber,
-        PlantCode: item.PlantCode,
-        ItemNumber: item.ItemNumber
-      });
+  //     if (!VIM_PO_ITEMS) {
+  //       item.RemainingQuantity = 0;
+  //       return;
+  //     }
 
-      item.RemainingQuantity =
-        VIM_PO_ITEMS.OrderedQuantity - (dispatched?.sum || 0);
-    }));
-  });
+  //     const dispatched = await SELECT.one`
+  //       sum(CurrentDispatchQuantity) as sum
+  //     `.from(VIM_PO_DISPATCH_ITEMS).where({
+  //       PONumber: item.PONumber,
+  //       PlantCode: item.PlantCode,
+  //       ItemNumber: item.ItemNumber
+  //     });
+
+  //     item.RemainingQuantity =
+  //       VIM_PO_ITEMS.OrderedQuantity - (dispatched?.sum || 0);
+  //   }));
+  // });
 
 });

@@ -5,7 +5,8 @@
   "dependencies": {
     "@sap/cds": "^9",
     "@sap/xssec": "^4",
-    "express": "^4",
+    "body-parser": "^2.2.1",
+    "express": "^4.22.1",
     "mongodb": "^7.0.0"
   },
   "devDependencies": {

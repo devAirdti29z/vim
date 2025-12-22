@@ -12,10 +12,8 @@ service POService {
 
     entity VIM_PO_DISPATCH_ITEMS as projection on db.VIM_PO_DISPATCH_ITEMS {
             *,
-            cast(
-                OrderedQuantity - CurrentDispatchQuantity
-                as Decimal(15,3)
-            ) as RemainingQuantity
+            virtual RemainingQuantity
+            
         };
 
 }
