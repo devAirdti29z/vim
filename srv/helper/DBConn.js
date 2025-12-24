@@ -3,7 +3,7 @@ const { MongoClient } = require("mongodb");
 let client;
 
 module.exports = {
-  getConnection: async function () {
+  getConnection: async function () {      
     const mongoDBConnectionURI =
       "mongodb+srv://Vaibhav:D7tY3V0VTWi5Am0w@aisp.smrk0zv.mongodb.net/";
 

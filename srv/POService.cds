@@ -6,14 +6,14 @@ service POService {
 
     entity VIM_PO_HEADERS as projection on db.VIM_PO_HEADERS;
 
-    entity VIM_PO_ITEMS as projection on db.VIM_PO_ITEMS;
+    entity VIM_PO_ITEMS as projection on db.VIM_PO_ITEMS{
+            *,
+            virtual RemainingQuantity:Integer
+            
+        };
 
     entity VIM_PO_DISPATCH_ADDR as projection on db.VIM_PO_DISPATCH_ADDR;
 
-    entity VIM_PO_DISPATCH_ITEMS as projection on db.VIM_PO_DISPATCH_ITEMS {
-            *,
-            virtual RemainingQuantity
-            
-        };
+    entity VIM_PO_DISPATCH_ITEMS as projection on db.VIM_PO_DISPATCH_ITEMS 
 
 }

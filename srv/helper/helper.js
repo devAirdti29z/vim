@@ -323,10 +323,67 @@ async function handleExpand(selectedFields, childTables, req) {
     return { lookups, scalarProject, hasAssoc, entityDef };
 }
 
+/**
+ * Generically handles OData-style expands for MongoDB
+ * @param {Object} req - The original request object
+ * @param {Object} config - Mapping of association names to their collection and join keys
+ * @returns {Promise<Object>} - Object containing the expanded datasets
+ */
+// async function handleExpands(req, config) {
+//     const { expand } = req.query;
+//     const expandedData = {};
 
+//     if (!expand || !Array.isArray(expand)) return expandedData;
+
+//     for (const association of expand) {
+//         const mapping = config[association];
+
+//         if (mapping) {
+//             // Build the filter dynamically based on the joinKeys array
+//             const filter = {};
+//             mapping.joinKeys.forEach(key => {
+//                 filter[key] = req.data[key];
+//             });
+
+//             expandedData[association] = await mongoRead(mapping.collection, filter);
+//         }
+//     }
+
+//     return expandedData;
+// }
+
+async function handleExpands(req, config) {
+    const { expand } = req.query;
+    if (!expand || !Array.isArray(expand)) return {};
+
+    const expansionPromises = expand.map(async (association) => {
+        const mapping = config[association];
+        if (!mapping) return null;
+
+        const filter = {};
+        mapping.joinKeys.forEach(key => {
+            filter[key] = req.data[key];
+        });
+
+        const data = await mongoRead(mapping.collection, filter);
+        return { association, data };
+    });
+
+    const results = await Promise.all(expansionPromises);
+    
+    // Reduce array of results into a single object
+    return results.reduce((acc, curr) => {
+        if (curr) acc[curr.association] = curr.data;
+        return acc;
+    }, {});
+}
     async function mongoRead(entity, req, childTables) {
         const { database } = await getConnection();
         const collection = database.collection(entity);
+        const{ expand }=req.query
+        if(expand){
+
+        }
 
         function flattenXpr(expr) {
             return expr.reduce((acc, tok) => {
@@ -819,6 +876,8 @@ async function calculateRemainingQuantity(
   dispatchedField = "CurrentDispatchQuantity"
 ) {
   try {
+
+    console.log("Starting aggregation for:", collectionName, "with params:", queryParams);  // Debugging start of aggregation
     // Connect to the MongoDB database
     const { database } = await getConnection();
     const collection = database.collection(collectionName);
@@ -853,10 +912,12 @@ async function calculateRemainingQuantity(
         }
       },
     ];
-
+ console.log("Aggregation Pipeline:", JSON.stringify(aggregationPipeline, null, 2));  // Debugging pipeline structure
     // Perform aggregation query
     const result = await collection.aggregate(aggregationPipeline).toArray();
+     console.log("Aggregation result:", result);  // Debugging final result
     return result;
+    
   } catch (error) {
     console.error("Error in aggregation function:", error);
     throw error;
@@ -1037,6 +1098,7 @@ async function calculateRemainingQuantity(
 
 module.exports = {
   calculateRemainingQuantity,
+  handleExpands,
   handleCRUD,
   handleCRUDForSeverity,
   mongoRead,

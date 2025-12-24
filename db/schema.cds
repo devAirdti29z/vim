@@ -11,9 +11,6 @@ entity VIM_PO_HEADERS : managed {
     PlantDescription  : String(100);
     PlantAddress      : String(255);
 
-    CreationDate      : Date;
-    //CreatedBy         : String(50);
-
     SupplierName      : String(100);
     SupplierCode      : String(20);
     SupplierAddress   : String(255);
@@ -81,7 +78,7 @@ entity VIM_PO_DISPATCH_ITEMS : managed {
     UnitOfMeasure              : String(10);
 
     OrderedQuantity            : Integer;
-    virtual RemainingQuantity          : Integer;
+    RemainingQuantity          : Integer;
     CurrentDispatchQuantity    : Integer; 
 
 
@@ -103,7 +100,7 @@ entity VIM_PO_ITEMS : managed {
     UnitOfMeasure        : String(10);
 
     OrderedQuantity      : Integer;  // original PO qty from S/4
-
+    virtual RemainingQuantity          : Integer;
     // Header : Association to VIM_PO_HEADERS
     //     on Header.PONumber = $self.PONumber
     //    and Header.PlantCode = $self.PlantCode;
